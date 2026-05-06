@@ -131,16 +131,16 @@ def _route_after(state: GraphState) -> str:
 
 def _build_graph():  # type: ignore[no-untyped-def]
     builder = StateGraph(GraphState)
-    builder.add_node("route", _route_node)
-    builder.add_node("rag", _rag_node)
-    builder.add_node("tools", _tools_node)
+    builder.add_node("router_node", _route_node)
+    builder.add_node("retrieve_rag", _rag_node)
+    builder.add_node("run_tools", _tools_node)
     builder.add_node("synthesize", _synth_node)
     builder.add_node("propose_actions", _propose_actions_node)
 
-    builder.add_edge(START, "route")
-    builder.add_edge("route", "rag")
-    builder.add_edge("rag", "tools")
-    builder.add_edge("tools", "synthesize")
+    builder.add_edge(START, "router_node")
+    builder.add_edge("router_node", "retrieve_rag")
+    builder.add_edge("retrieve_rag", "run_tools")
+    builder.add_edge("run_tools", "synthesize")
     builder.add_conditional_edges(
         "synthesize",
         _route_after,
