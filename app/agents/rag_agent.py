@@ -49,13 +49,14 @@ async def retrieve(query: str, k: int = DEFAULT_K) -> RagResult:
 
     qdrant = AsyncQdrantClient(url=settings.qdrant_url)
     try:
-        hits = await qdrant.search(
+        response = await qdrant.query_points(
             collection_name=COLLECTION,
-            query_vector=qvec,
+            query=qvec,
             limit=k,
             with_payload=True,
             score_threshold=SIMILARITY_THRESHOLD,
         )
+        hits = response.points
     except Exception as exc:
         logger.warning("rag-search-failed: %s", exc)
         await qdrant.close()
