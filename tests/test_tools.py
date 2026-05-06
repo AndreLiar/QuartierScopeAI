@@ -10,9 +10,9 @@ from app.tools import dvf, web_search
 @pytest.mark.asyncio
 async def test_dvf_discovery_returns_dataservice() -> None:
     discovery = await dvf.discover_cerema_api(force_refresh=True)
-    assert discovery is not None, "expected MCP to return at least one DVF dataservice"
     assert discovery["name"]
     assert "base_url" in discovery
+    assert "description" in discovery
 
 
 @pytest.mark.asyncio

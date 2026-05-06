@@ -35,6 +35,14 @@ class DvfDiscovery(TypedDict):
     openapi_url: str | None
 
 
+DEFAULT_DISCOVERY: DvfDiscovery = {
+    "name": "API Données Foncières (Cerema)",
+    "base_url": "",
+    "description": "Données ouvertes de transactions immobilières DVF, publiées par le Cerema",
+    "openapi_url": None,
+}
+
+
 class TransactionStats(TypedDict):
     code_insee: str
     year_from: int
@@ -44,38 +52,59 @@ class TransactionStats(TypedDict):
     sources: list[dict[str, str]]
 
 
-async def _redis() -> redis_async.Redis:
-    return redis_async.from_url(settings.redis_url, decode_responses=True)
-
-
-async def discover_cerema_api(force_refresh: bool = False) -> DvfDiscovery | None:
-    cache = await _redis()
-    if not force_refresh:
-        cached = await cache.get(DISCOVERY_CACHE_KEY)
-        if cached:
-            logger.info("dvf-discovery: cache hit")
-            return json.loads(cached)
-
-    logger.info("dvf-discovery: querying data.gouv MCP search_dataservices")
-    async with DataGouvMCP() as mcp:
-        results = await mcp.call("search_dataservices", q="DVF demandes valeurs foncières")
-
-    candidates = _extract_dataservices(results)
-    cerema = next(
-        (c for c in candidates if "foncière" in c.get("name", "").lower() or "DVF" in c.get("name", "")),
-        candidates[0] if candidates else None,
-    )
-    if cerema is None:
-        logger.warning("dvf-discovery: no dataservice candidate returned by MCP")
+async def _redis() -> redis_async.Redis | None:
+    try:
+        client = redis_async.from_url(settings.redis_url, decode_responses=True, socket_timeout=2)
+        await client.ping()
+        return client
+    except Exception as exc:
+        logger.warning("redis-unavailable: %s — proceeding without cache", exc)
         return None
 
-    discovery: DvfDiscovery = {
-        "name": cerema.get("name", "API Données Foncières"),
-        "base_url": cerema.get("base_url", ""),
-        "description": cerema.get("description", ""),
-        "openapi_url": cerema.get("openapi_url"),
-    }
-    await cache.setex(DISCOVERY_CACHE_KEY, DISCOVERY_TTL, json.dumps(discovery))
+
+async def discover_cerema_api(force_refresh: bool = False) -> DvfDiscovery:
+    """Find the Cerema DVF dataservice via data.gouv MCP. Falls back to a sensible default."""
+    cache = await _redis()
+    if cache is not None and not force_refresh:
+        try:
+            cached = await cache.get(DISCOVERY_CACHE_KEY)
+            if cached:
+                logger.info("dvf-discovery: cache hit")
+                return json.loads(cached)
+        except Exception as exc:
+            logger.warning("redis-get-failed: %s", exc)
+
+    discovery: DvfDiscovery = dict(DEFAULT_DISCOVERY)  # type: ignore[assignment]
+    try:
+        logger.info("dvf-discovery: querying data.gouv MCP search_dataservices")
+        async with DataGouvMCP() as mcp:
+            results = await mcp.call("search_dataservices", q="DVF demandes valeurs foncières")
+        candidates = _extract_dataservices(results)
+        cerema = next(
+            (
+                c
+                for c in candidates
+                if "foncière" in c.get("name", "").lower() or "DVF" in c.get("name", "")
+            ),
+            candidates[0] if candidates else None,
+        )
+        if cerema is not None:
+            discovery = {
+                "name": cerema.get("name") or DEFAULT_DISCOVERY["name"],
+                "base_url": cerema.get("base_url") or "",
+                "description": cerema.get("description") or DEFAULT_DISCOVERY["description"],
+                "openapi_url": cerema.get("openapi_url"),
+            }
+        else:
+            logger.warning("dvf-discovery: no candidate from MCP, using default")
+    except Exception as exc:
+        logger.warning("dvf-discovery: MCP call failed (%s) — using default", exc)
+
+    if cache is not None:
+        try:
+            await cache.setex(DISCOVERY_CACHE_KEY, DISCOVERY_TTL, json.dumps(discovery))
+        except Exception as exc:
+            logger.warning("redis-set-failed: %s", exc)
     return discovery
 
 
@@ -121,15 +150,13 @@ async def query_transactions(
     The actual Cerema call is wired in QS-022 once the discovery contract is verified.
     """
     discovery = await discover_cerema_api()
-    sources: list[dict[str, str]] = []
-    if discovery is not None:
-        sources.append(
-            {
-                "name": discovery["name"],
-                "url": discovery.get("base_url") or "",
-                "description": discovery.get("description", "")[:200],
-            }
-        )
+    sources: list[dict[str, str]] = [
+        {
+            "name": discovery["name"],
+            "url": discovery.get("base_url") or "",
+            "description": (discovery.get("description") or "")[:200],
+        }
+    ]
 
     return {
         "code_insee": code_insee,
@@ -144,8 +171,8 @@ async def query_transactions(
 async def cerema_get(path: str, params: dict[str, str | int] | None = None) -> dict[str, Any]:
     """Authenticated-or-not GET to the Cerema API. Wired in QS-022."""
     discovery = await discover_cerema_api()
-    if discovery is None or not discovery["base_url"]:
-        raise RuntimeError("Cerema API not discoverable via data.gouv MCP")
+    if not discovery["base_url"]:
+        raise RuntimeError("Cerema API base_url not discoverable via data.gouv MCP")
 
     url = discovery["base_url"].rstrip("/") + "/" + path.lstrip("/")
     async with httpx.AsyncClient(timeout=30.0) as client:

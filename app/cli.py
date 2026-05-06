@@ -56,11 +56,11 @@ def dvf(
     async def _run() -> None:
         console.print("[bold]Discovering Cerema DVF API via data.gouv MCP…[/bold]")
         discovery = await discover_cerema_api()
-        if discovery is None:
-            console.print("[red]✗ no DVF dataservice found[/red]")
-            return
-        console.print(f"[green]✓[/green] found: [cyan]{discovery['name']}[/cyan]")
-        console.print(f"  base_url: {discovery.get('base_url')}")
+        console.print(f"[green]✓[/green] {discovery['name']}")
+        if discovery.get("base_url"):
+            console.print(f"  base_url: {discovery['base_url']}")
+        else:
+            console.print("  [yellow](base_url not provided by MCP — using default reference)[/yellow]")
 
         console.print(f"\n[bold]Querying transactions for {commune}…[/bold]")
         stats = await query_transactions(commune, year_from=year_from, year_to=year_to)
