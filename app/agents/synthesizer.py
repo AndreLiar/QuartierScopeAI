@@ -63,39 +63,50 @@ def _format_tools_data(tools: dict) -> str:
     return "\n".join(lines)
 
 
+def _tokenize(s: str) -> set[str]:
+    tokens = re.split(r"[\s\-—()/,]+", s.lower())
+    return {t for t in tokens if len(t) > 2}
+
+
 def _filter_citations(answer: str, valid_sources: set[str]) -> tuple[str, list[str]]:
     """Strip any [Source: X] where X doesn't match a provided source. Returns
     (cleaned_answer, list_of_used_sources) where order is first-cited-first.
+
+    Matching strategy (in order):
+    1. exact match
+    2. case-insensitive exact
+    3. token-overlap: ≥50% of cited tokens (len>2) appear in a valid source
     """
     used: list[str] = []
     seen: set[str] = set()
     valid_lower = {s.lower(): s for s in valid_sources}
+    valid_tokens = {src: _tokenize(src) for src in valid_sources}
 
     def _replace(match: re.Match[str]) -> str:
         cited_raw = match.group(1).strip().strip("\"'")
-        # exact match
         if cited_raw in valid_sources:
-            if cited_raw not in seen:
-                used.append(cited_raw)
-                seen.add(cited_raw)
-            return f"[Source: {cited_raw}]"
-        # case-insensitive exact
-        canonical = valid_lower.get(cited_raw.lower())
-        if canonical is not None:
-            if canonical not in seen:
-                used.append(canonical)
-                seen.add(canonical)
-            return f"[Source: {canonical}]"
-        # prefix / containment match (e.g. LLM cited "Wikipédia FR — DPE" instead of full name)
-        for src in valid_sources:
-            if cited_raw.lower() in src.lower() or src.lower() in cited_raw.lower():
-                if src not in seen:
-                    used.append(src)
-                    seen.add(src)
-                return f"[Source: {src}]"
-        # no match → drop the bogus citation
-        logger.warning("citation-stripped: %r not in valid sources", cited_raw)
-        return ""
+            target = cited_raw
+        elif cited_raw.lower() in valid_lower:
+            target = valid_lower[cited_raw.lower()]
+        else:
+            cited_toks = _tokenize(cited_raw)
+            best_match: str | None = None
+            best_overlap = 0
+            for src, toks in valid_tokens.items():
+                overlap = len(cited_toks & toks)
+                threshold = max(1, len(cited_toks) // 2)
+                if overlap > best_overlap and overlap >= threshold:
+                    best_overlap = overlap
+                    best_match = src
+            if best_match is None:
+                logger.warning("citation-stripped: %r not in valid sources", cited_raw)
+                return ""
+            target = best_match
+
+        if target not in seen:
+            used.append(target)
+            seen.add(target)
+        return f"[Source: {target}]"
 
     cleaned = CITATION_RE.sub(_replace, answer)
     cleaned = re.sub(r" {2,}", " ", cleaned)
