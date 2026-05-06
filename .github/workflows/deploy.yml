@@ -1,0 +1,85 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Trust droplet host key
+        env:
+          DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$DROPLET_HOST" >> ~/.ssh/known_hosts
+
+      - name: Sync repository to droplet
+        env:
+          DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+        run: |
+          rsync -az --delete \
+            --exclude '.git/' \
+            --exclude 'terraform/' \
+            --exclude '.terraform/' \
+            --exclude 'data/dvf_cache/' \
+            --exclude '.env' \
+            --exclude '.github/' \
+            ./ "quartierscope@${DROPLET_HOST}:/home/quartierscope/quartierscope/"
+
+      - name: Bootstrap .env on first deploy
+        env:
+          DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+        run: |
+          ssh "quartierscope@${DROPLET_HOST}" 'bash -s' <<'EOSSH'
+          set -euo pipefail
+          cd /home/quartierscope/quartierscope
+          if [ ! -f .env ]; then
+            cp .env.example .env
+            sed -i "s/change-me-please/$(openssl rand -hex 16)/g" .env
+            echo "[deploy] generated random Langfuse secrets in .env"
+          fi
+          EOSSH
+
+      - name: docker compose up
+        env:
+          DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+        run: |
+          ssh "quartierscope@${DROPLET_HOST}" 'bash -s' <<'EOSSH'
+          set -euo pipefail
+          cd /home/quartierscope/quartierscope
+          docker compose pull --ignore-buildable || true
+          docker compose up -d --build --remove-orphans
+          docker compose ps
+          EOSSH
+
+      - name: Health check
+        env:
+          DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+        run: |
+          for i in $(seq 1 36); do
+            if curl -sf "http://${DROPLET_HOST}/health"; then
+              echo ""
+              echo "✓ deployment healthy"
+              exit 0
+            fi
+            echo "  attempt $i/36 — waiting 5s…"
+            sleep 5
+          done
+          echo "✗ /health did not respond within 3 minutes"
+          ssh "quartierscope@${DROPLET_HOST}" 'cd /home/quartierscope/quartierscope && docker compose logs --tail=80 app'
+          exit 1

@@ -1,0 +1,37 @@
+{
+    auto_https off
+    admin off
+}
+
+:80 {
+    handle /langfuse* {
+        uri strip_prefix /langfuse
+        reverse_proxy langfuse-server:3000
+    }
+
+    handle /api* {
+        reverse_proxy app:8000
+    }
+
+    handle /health {
+        reverse_proxy app:8000
+    }
+
+    handle /docs* {
+        reverse_proxy app:8000
+    }
+
+    handle {
+        reverse_proxy app:8501
+    }
+
+    encode zstd gzip
+
+    header {
+        Strict-Transport-Security "max-age=0"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "no-referrer"
+        -Server
+    }
+}
