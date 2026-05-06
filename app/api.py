@@ -23,7 +23,7 @@ app.add_middleware(
 @app.middleware("http")
 async def add_secure_headers(request: Request, call_next):  # type: ignore[no-untyped-def]
     response = await call_next(request)
-    secure_headers.framework.fastapi(response)
+    secure_headers.set_headers(response)
     return response
 
 
