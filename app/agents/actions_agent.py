@@ -14,7 +14,7 @@ disabled), and execute() refuses to run.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TypedDict
 
 from app.config import settings
@@ -30,7 +30,7 @@ class PlannedAction(TypedDict):
 
 
 def _format_brief_for_note(query: str, synth_answer: str, citations: list[dict]) -> str:
-    parts = [f"<b>QuartierScope AI — analyse de quartier</b>", f"<i>Question:</i> {query}", ""]
+    parts = ["<b>QuartierScope AI — analyse de quartier</b>", f"<i>Question:</i> {query}", ""]
     parts.append(synth_answer)
     if citations:
         parts.append("")
@@ -73,7 +73,7 @@ async def propose(
             "args": {
                 "deal_id": deal_id,
                 "props": {
-                    "qs_last_analysis_at": datetime.now(timezone.utc).isoformat(),
+                    "qs_last_analysis_at": datetime.now(UTC).isoformat(),
                 },
             },
             "preview": f"Update deal {deal_id} → qs_last_analysis_at",
