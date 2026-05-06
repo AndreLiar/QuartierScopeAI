@@ -39,5 +39,6 @@ async def query(request: Request, body: QueryRequest) -> dict:
         query=body.query,
         history=body.history,
         deal_id=body.deal_id,
+        confirm=body.confirm,
     )
     return result

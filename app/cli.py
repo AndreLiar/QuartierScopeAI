@@ -15,26 +15,36 @@ def query(
     text: str = typer.Argument(..., help="La question à poser"),
     deal: str | None = typer.Option(None, help="ID du deal HubSpot pour rattacher l'analyse"),
 ) -> None:
-    result = asyncio.run(orchestrator_run(query=text, history=[], deal_id=deal))
+    result = asyncio.run(orchestrator_run(query=text, history=[], deal_id=deal, confirm=False))
 
     tree = Tree(f"[bold]Question:[/bold] {text}")
     for step in result.get("trace", []):
         tree.add(f"[yellow]{step.get('step', '?')}[/yellow] → {step.get('detail', '...')}")
-    tree.add(f"[green]Final[/green] → {result.get('answer', '')[:120]}")
     console.print(tree)
 
+    if result.get("refused"):
+        console.print(f"\n[red]✗ refusé:[/red] {result.get('answer', '')}")
+        return
+
+    console.print(f"\n[bold]Réponse:[/bold]\n{result.get('answer', '')}\n")
+
     if result.get("citations"):
-        console.print("\n[bold]Citations:[/bold]")
+        console.print("[bold]Citations:[/bold]")
         for c in result["citations"]:
-            console.print(f"  - {c.get('source', '?')}: {c.get('url', '')}")
+            console.print(f"  • [cyan]{c.get('source', '?')}[/cyan] ({c.get('score', 0):.2f})")
+            console.print(f"    {c.get('url', '')}")
 
     if result.get("proposed_actions"):
-        console.print("\n[bold red]Actions proposées:[/bold red]")
+        console.print("\n[bold yellow]Actions proposées:[/bold yellow]")
         for a in result["proposed_actions"]:
-            console.print(f"  - {a}")
-        confirm = typer.confirm("Confirmer l'écriture HubSpot ?", default=False)
-        if confirm:
-            console.print("[green]→ écriture (stub QS-052)[/green]")
+            console.print(f"  • {a.get('preview', a.get('tool'))}")
+        if typer.confirm("Confirmer l'écriture HubSpot ?", default=False):
+            confirmed_result = asyncio.run(
+                orchestrator_run(query=text, history=[], deal_id=deal, confirm=True)
+            )
+            for r in confirmed_result.get("receipts", []):
+                colour = "green" if r.get("status") == "ok" else "red"
+                console.print(f"  [{colour}]→ {r.get('tool')}: {r.get('status')}[/{colour}]")
 
 
 @app.command()
