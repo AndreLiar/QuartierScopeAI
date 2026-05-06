@@ -41,7 +41,11 @@ async def retrieve(query: str, k: int = DEFAULT_K) -> RagResult:
         return {"chunks": [], "citations": [], "refused": True}
 
     embedder = OpenAIEmbeddings(model=EMBED_MODEL, api_key=settings.openai_api_key)
-    qvec = await embedder.aembed_query(query)
+    try:
+        qvec = await embedder.aembed_query(query)
+    except Exception as exc:
+        logger.warning("rag-embed-failed: %s", exc)
+        return {"chunks": [], "citations": [], "refused": True}
 
     qdrant = AsyncQdrantClient(url=settings.qdrant_url)
     try:
