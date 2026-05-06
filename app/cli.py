@@ -70,6 +70,33 @@ def dvf(
 
 
 @app.command()
+def rag(query_text: str = typer.Argument(..., help="Question pour le RAG")) -> None:
+    """QS-032 — retrieve from corpus with citation enforcement."""
+    from app.agents.rag_agent import retrieve
+
+    async def _run() -> None:
+        result = await retrieve(query_text)
+        if result["refused"]:
+            console.print("[red]✗ aucun chunk pertinent — réponse refusée (politique citation, PRD §13.2)[/red]")
+            return
+        console.print(f"[green]✓[/green] {len(result['chunks'])} chunks, {len(result['citations'])} sources distinctes\n")
+        for c in result["citations"]:
+            console.print(f"[cyan]{c['source']}[/cyan]  (score={c['score']:.2f})")
+            console.print(f"  {c['url']}")
+            console.print(f"  {c['snippet'][:200]}…\n")
+
+    asyncio.run(_run())
+
+
+@app.command()
+def ingest_corpus() -> None:
+    """QS-030/031/033 — download + chunk + embed + upsert the 11-source corpus."""
+    from app.ingest import main as ingest_main
+
+    ingest_main()
+
+
+@app.command()
 def web(query_text: str = typer.Argument(..., help="Recherche web (Tavily)")) -> None:
     """QS-023 — Tavily web search with SSRF guard."""
     from app.tools.web_search import search
