@@ -30,7 +30,8 @@ dependencies = [
     "httpx>=0.28,<1.0",
     "tavily-python>=0.5,<1.0",
     "langfuse>=2.50,<3.0",
-    "unstructured>=0.16,<1.0",
+    "beautifulsoup4>=4.12,<5.0",
+    "pypdf>=5.0,<6.0",
     "pdfplumber>=0.11,<1.0",
     "tiktoken>=0.8,<1.0",
 ]

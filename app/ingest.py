@@ -19,7 +19,8 @@ import uuid
 from pathlib import Path
 
 import httpx
-from langchain_community.document_loaders import PyPDFLoader, UnstructuredHTMLLoader
+from bs4 import BeautifulSoup
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -43,70 +44,70 @@ CHUNK_OVERLAP = 150
 # a few may rot — `python -m app.ingest --skip-broken` swallows fetch errors.
 SOURCES: list[dict[str, str]] = [
     {
-        "name": "ANIL — Investissement locatif",
-        "url": "https://www.anil.org/aj-investissement-locatif/",
+        "name": "Wikipédia FR — Demande de valeurs foncières (DVF)",
+        "url": "https://fr.wikipedia.org/wiki/Demande_de_valeurs_fonci%C3%A8res",
         "kind": "html",
         "category": "methodology",
     },
     {
-        "name": "ANIL — Encadrement des loyers",
-        "url": "https://www.anil.org/encadrement-des-loyers-zones-tendues/",
+        "name": "Wikipédia FR — Loi Pinel",
+        "url": "https://fr.wikipedia.org/wiki/Dispositif_Pinel",
         "kind": "html",
         "category": "regulation",
     },
     {
-        "name": "Notaires de France — Note de conjoncture",
-        "url": "https://www.notaires.fr/fr/immobilier/prix-de-l-immobilier/note-de-conjoncture-immobiliere",
-        "kind": "html",
-        "category": "methodology",
-    },
-    {
-        "name": "Cerema — Méthodologie DVF",
-        "url": "https://www.cerema.fr/fr/actualites/dvf-base-donnees-transactions-immobilieres-tres-attendue",
-        "kind": "html",
-        "category": "methodology",
-    },
-    {
-        "name": "INSEE — Aires d'attraction des villes",
-        "url": "https://www.insee.fr/fr/information/4803954",
-        "kind": "html",
-        "category": "methodology",
-    },
-    {
-        "name": "OLAP — Méthodologie loyers",
-        "url": "https://www.observatoires-des-loyers.org/methodologie/",
-        "kind": "html",
-        "category": "methodology",
-    },
-    {
-        "name": "ADEME — Guide DPE",
-        "url": "https://expertises.ademe.fr/batiment/passer-a-laction/diagnostic-performance-energetique-dpe",
-        "kind": "html",
-        "category": "methodology",
-    },
-    {
-        "name": "Banque de France — HCSF crédit immobilier",
-        "url": "https://www.hcsf.gouv.fr/decisions-du-hcsf",
+        "name": "Wikipédia FR — Location meublée non professionnelle (LMNP)",
+        "url": "https://fr.wikipedia.org/wiki/Location_meubl%C3%A9e_non_professionnelle",
         "kind": "html",
         "category": "regulation",
     },
     {
-        "name": "Service-public.fr — Zones tendues",
-        "url": "https://www.service-public.fr/particuliers/vosdroits/F1314",
+        "name": "Wikipédia FR — Dispositif Denormandie",
+        "url": "https://fr.wikipedia.org/wiki/Dispositif_Denormandie",
         "kind": "html",
         "category": "regulation",
     },
     {
-        "name": "Géorisques — Zones inondables",
-        "url": "https://www.georisques.gouv.fr/articles-risques/le-risque-inondation",
+        "name": "Wikipédia FR — Diagnostic de performance énergétique (DPE)",
+        "url": "https://fr.wikipedia.org/wiki/Diagnostic_de_performance_%C3%A9nerg%C3%A9tique",
+        "kind": "html",
+        "category": "methodology",
+    },
+    {
+        "name": "Wikipédia FR — Zones tendues",
+        "url": "https://fr.wikipedia.org/wiki/Zone_tendue",
+        "kind": "html",
+        "category": "regulation",
+    },
+    {
+        "name": "Wikipédia FR — Encadrement des loyers en France",
+        "url": "https://fr.wikipedia.org/wiki/Encadrement_des_loyers_en_France",
+        "kind": "html",
+        "category": "regulation",
+    },
+    {
+        "name": "Wikipédia FR — Conseil en gestion de patrimoine",
+        "url": "https://fr.wikipedia.org/wiki/Conseil_en_gestion_de_patrimoine",
+        "kind": "html",
+        "category": "compliance",
+    },
+    {
+        "name": "Wikipédia FR — Conseiller en investissements financiers (CIF)",
+        "url": "https://fr.wikipedia.org/wiki/Conseiller_en_investissements_financiers",
+        "kind": "html",
+        "category": "compliance",
+    },
+    {
+        "name": "Wikipédia FR — Plan de prévention des risques d'inondation (PPRI)",
+        "url": "https://fr.wikipedia.org/wiki/Plan_de_pr%C3%A9vention_des_risques_d%27inondation",
         "kind": "html",
         "category": "risk",
     },
     {
-        "name": "AMF — Devoir de conseil CIF",
-        "url": "https://www.amf-france.org/fr/professionnels/conseillers-en-investissements-financiers-cif",
+        "name": "Wikipédia FR — Marché immobilier français",
+        "url": "https://fr.wikipedia.org/wiki/March%C3%A9_immobilier_en_France",
         "kind": "html",
-        "category": "compliance",
+        "category": "methodology",
     },
 ]
 
@@ -140,7 +141,12 @@ def _slug(s: str) -> str:
 def _load(path: Path) -> list[Document]:
     if path.suffix == ".pdf":
         return PyPDFLoader(str(path)).load()
-    return UnstructuredHTMLLoader(str(path)).load()
+    html = path.read_text(encoding="utf-8", errors="ignore")
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup(["script", "style", "nav", "footer", "header", "aside", "noscript"]):
+        tag.decompose()
+    text = soup.get_text(separator="\n", strip=True)
+    return [Document(page_content=text, metadata={"source_path": str(path)})]
 
 
 def _chunk(docs: list[Document], source_meta: dict[str, str]) -> list[Document]:
