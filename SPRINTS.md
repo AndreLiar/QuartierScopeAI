@@ -238,6 +238,7 @@ Captured from PRD §11 (open architectural questions). Do **not** pull into v1:
 - BL-107: Mortgage-broker pivot v2 (different RAG corpus, ACPR audit hook)
 - BL-108: Custom domain + Caddy auto-TLS (`quartierscope.app`)
 - BL-109: DO Spaces for shared DVF cache across multiple droplets
+- BL-110: Migrate HubSpot integration to "MCP Auth Apps" (HubSpot's native MCP server) once it leaves beta — replaces Private App token + custom MCP wrapper
 
 ---
 
