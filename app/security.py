@@ -9,7 +9,14 @@ from slowapi.util import get_remote_address
 
 from app.config import settings
 
-QUERY_CHARSET = re.compile(r"^[a-zA-Z0-9_\sÀ-ÿ.,;:!?'\"\-/€%()\[\]+]*$")
+QUERY_CHARSET = re.compile(
+    r"^["
+    r"a-zA-Z0-9_\s"
+    r"À-ÿ"
+    r".,;:!?'\"\-/€%()\[\]+&@#*=<>"
+    r"—–…«»‘’“”"
+    r"]*$"
+)
 MAX_QUERY_LEN = 2000
 
 
