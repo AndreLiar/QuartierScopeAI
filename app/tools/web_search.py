@@ -17,6 +17,24 @@ from app.security import is_private_or_loopback
 
 logger = logging.getLogger(__name__)
 
+# Authoritative French sources only — keeps Lettre de Mission AMF citations
+# defensible and filters out commercial real-estate/marketing sites that
+# would degrade compliance value of the brief.
+INCLUDE_DOMAINS: list[str] = [
+    "gouv.fr",
+    "wikipedia.org",
+    "anil.org",
+    "amf-france.org",
+    "cerema.fr",
+    "notaires.fr",
+    "insee.fr",
+    "service-public.fr",
+    "ademe.fr",
+    "banque-france.fr",
+    "orias.fr",
+    "georisques.gouv.fr",
+]
+
 
 async def search(query: str, max_results: int = 5) -> list[dict[str, Any]]:
     if not settings.tavily_api_key:
@@ -29,6 +47,7 @@ async def search(query: str, max_results: int = 5) -> list[dict[str, Any]]:
         max_results=max_results,
         include_answer=False,
         search_depth="basic",
+        include_domains=INCLUDE_DOMAINS,
     )
 
     safe: list[dict[str, Any]] = []
