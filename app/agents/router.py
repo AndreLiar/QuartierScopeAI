@@ -14,6 +14,7 @@ from typing import Literal, TypedDict
 from langchain_openai import ChatOpenAI
 
 from app.config import settings
+from app.observability import trace_config
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,10 @@ async def classify(query: str, deal_id: str | None = None) -> RouterDecision:
         user += f"\ndeal_id: {deal_id}"
 
     try:
-        msg = await llm.ainvoke([("system", _system_prompt()), ("user", user)])
+        msg = await llm.ainvoke(
+            [("system", _system_prompt()), ("user", user)],
+            config=trace_config(name="router", metadata={"deal_id": deal_id}),
+        )
         raw = msg.content if isinstance(msg.content, str) else str(msg.content)
         data = json.loads(raw)
     except Exception as exc:

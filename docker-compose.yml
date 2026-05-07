@@ -34,6 +34,28 @@ services:
       - ./data:/app/data
     expose:
       - "8000"
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command:
+      [
+        "streamlit",
+        "run",
+        "app/streamlit_app.py",
+        "--server.port=8501",
+        "--server.address=0.0.0.0",
+        "--server.headless=true",
+        "--browser.gatherUsageStats=false",
+      ]
+    env_file: .env
+    environment:
+      STREAMLIT_API_BASE: http://app:8000
+    depends_on:
+      - app
+    expose:
       - "8501"
 
   qdrant:

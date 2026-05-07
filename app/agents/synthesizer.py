@@ -20,6 +20,7 @@ from typing import TypedDict
 from langchain_openai import ChatOpenAI
 
 from app.config import settings
+from app.observability import trace_config
 
 logger = logging.getLogger(__name__)
 
@@ -237,7 +238,17 @@ async def synthesize(query: str, rag: dict, tools: dict) -> SynthResult:
 
     system_prompt = _build_dynamic_prompt(rag_chunks)
     try:
-        msg = await llm.ainvoke([("system", system_prompt), ("user", user)])
+        msg = await llm.ainvoke(
+            [("system", system_prompt), ("user", user)],
+            config=trace_config(
+                name="synthesizer",
+                metadata={
+                    "rag_chunks": len(rag_chunks),
+                    "tools_sources": len(tools_sources),
+                    "categories": sorted({c.get("category") for c in rag_chunks if c.get("category")}),
+                },
+            ),
+        )
         raw_answer = msg.content if isinstance(msg.content, str) else str(msg.content)
     except Exception as exc:
         logger.warning("synth-failed: %s", exc)
