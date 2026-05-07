@@ -8,7 +8,11 @@ Agile plan covering the 44h roadmap defined in `prd.md` §17. Importable into Li
 
 ## Completion status
 
-**Sprints 1, 2, 3 and 4 = closed.** All ~22 stories shipped to production except QS-091 (the 3-min demo recording, which is a manual step on the user's end). QS-022 (DuckDB DVF fallback) is deferred — Cerema discovery via MCP works reliably, so the fallback never became necessary.
+**v1 (Sprints 1–4) = ✅ closed.** All 22 stories shipped to production except QS-091 (the 3-min demo recording, manual step). QS-022 (DuckDB DVF fallback) was deferred during v1 — moved to Sprint 7 (QS-121) to close it as part of v1.5.
+
+**v1.5 (Sprints 5–7) = ⏳ planned, ~32h.** Closes the 4 gaps identified by evaluating v1 against the real CGP-immobilier playbook: fiscal simulators chiffrés (Pinel/LMNP/Denormandie), financing simulator, profitability scoring wired, client-facing PDF Lettre de Mission, live DVF transactions.
+
+**v2 (Sprints 8–9) = ⏳ planned, ~26h.** SaaS-ifies the platform: programmes neufs marketplace + multi-tenant onboarding for other independent CGPs.
 
 Verified live operational state:
 
@@ -25,12 +29,17 @@ Status legend used below: ✅ shipped & verified · ⚠️ deferred (non-blockin
 
 ## Sprint cadence
 
-| Sprint | Phase (PRD §17) | Hours | Sprint goal (demo-able outcome) | Status |
+| Sprint | Phase | Hours | Sprint goal (demo-able outcome) | Status |
 |---|---|---|---|---|
-| **S1 — Foundation** | 1, 2 | ~12h | "Sarah tape une commande sur le droplet et reçoit des transactions DVF live de Lyon 7e via le MCP officiel." | ✅ closed |
-| **S2 — RAG + Tools complete** | 3 | ~10h | "QuartierScope produit un brief sourcé qui combine corpus expert et données live." | ✅ closed |
-| **S3 — Orchestration + Actions** | 4, 5 | ~12h | "Le brief s'attache automatiquement au deal HubSpot après confirmation `[y/N]`." | ✅ closed |
-| **S4 — Quality, Frontend, Demo** | 6, 7, 8 | ~10h | "Le démo tourne en ligne (`http://<ip>`), trace visible dans Langfuse, tests passent." | ✅ closed (recording = user) |
+| **S1 — Foundation** | v1 | ~12h | "Sarah tape une commande sur le droplet et reçoit des transactions DVF live de Lyon 7e via le MCP officiel." | ✅ closed |
+| **S2 — RAG + Tools complete** | v1 | ~10h | "QuartierScope produit un brief sourcé qui combine corpus expert et données live." | ✅ closed |
+| **S3 — Orchestration + Actions** | v1 | ~12h | "Le brief s'attache automatiquement au deal HubSpot après confirmation `[y/N]`." | ✅ closed |
+| **S4 — Quality, Frontend, Demo** | v1 | ~10h | "Le démo tourne en ligne (`http://<ip>`), trace visible dans Langfuse, tests passent." | ✅ closed |
+| **S5 — Fiscal & financial simulators** | v1.5 | ~14h | "Le brief contient une simulation chiffrée: réduction Pinel €/an, cashflow LMNP €/mois, mensualité, capacité d'emprunt HCSF." | ⏳ planned |
+| **S6 — Client-facing PDF artefacts** | v1.5 | ~10h | "Sarah clique 'Générer Lettre de Mission' → PDF audit-ready attaché au deal." | ⏳ planned |
+| **S7 — Live DVF + comparative pricing** | v1.5 | ~8h | "Le brief montre les vraies transactions DVF récentes (médiane, écart, échantillon)." | ⏳ planned |
+| **S8 — Marketplace & B2B integrations** | v2 | ~12h | "Sarah uploade son catalogue de programmes neufs; matching auto avec disclosure commission." | ⏳ planned |
+| **S9 — Multi-tenant SaaS** | v2 | ~14h | "D'autres CGPs indépendants peuvent s'inscrire — auth, billing, données isolées." | ⏳ planned |
 
 ## Definition of Ready (DoR)
 
@@ -241,21 +250,155 @@ A story is *Done* when:
 
 ---
 
-## Backlog (out of v1 scope)
+## v1.5 Roadmap — Fill the CGP-immobilier playbook gaps (~32h, 3 sprints)
 
-Captured from PRD §11 (open architectural questions). Do **not** pull into v1:
+Honest evaluation of v1 against what real CGP-immobilier cabinets do (Pinel/LMNP/Denormandie advisory + financing + clé-en-main accompagnement) showed v1 covers ~30–40 % of the playbook. v1 is the **compliance + analysis** layer; the missing 60% is **simulators chiffrés + client artefacts + live data**. v1.5 closes these gaps.
 
-- BL-100: Multi-tenant deployment (per-tenant droplet vs. shared cluster)
-- BL-101: HubSpot OAuth app (replacing PAT)
-- BL-102: Mistral default for GDPR-strict CGP customers
+| Sprint | Phase | Hours | Goal |
+|---|---|---|---|
+| **S5 — Fiscal & financial simulators** | 9 | ~14h | "Le brief inclut une simulation chiffrée: réduction Pinel €/an, cashflow LMNP €/mois, mensualité, capacité d'emprunt HCSF — tout calculé, pas seulement cité." |
+| **S6 — Client-facing PDF artefacts** | 10 | ~10h | "Sarah clique 'Générer Lettre de Mission' → PDF audit-ready (ORIAS/AMF header, simulations, citations cliquables) attaché automatiquement au deal HubSpot." |
+| **S7 — Live DVF + comparative pricing** | 11 | ~8h | "Le brief montre les vraies transactions DVF récentes du quartier (médiane, écart, échantillon)." |
+
+### E11 — Fiscal & financial simulators (~14h)
+
+> Convertir les règles fiscales du RAG en chiffres exploitables pour ce client.
+
+| ID | Story | Estimate |
+|---|---|---|
+| QS-100 | **Pinel simulator** — zones A bis/A/B1/B2, durées 6/9/12 ans, taux réformés 2024 (9/12/14%), plafonds loyer + ressources locataire. Returns: réduction totale €, réduction annuelle €, plafond loyer €/m². | 3h |
+| QS-101 | **LMNP cashflow simulator** — micro-BIC (abattement 50%) vs réel (amortissement immo + mobilier), CSG/CRDS, IS/IR, comparison avec location nue. Returns: cashflow mensuel €, impôt économisé/an €, TRI apparent. | 3h |
+| QS-102 | **Denormandie simulator** — éligibilité commune (liste ANRU + actions cœur de ville), plancher travaux ≥25 % du coût total, similaire à Pinel pour la réduction. | 2h |
+| QS-103 | **Financing simulator** — mensualité (formule annuités), TAEG (assurance incluse), capacité d'endettement HCSF 35 %, scénarios apport 10/20/30 %. | 2h |
+| QS-104 | **HCSF stress test** — recalcul mensualité avec taux +1 pp / +2 pp, alerte si capacité dépassée. | 1h |
+| QS-105 | **Wire `app/tools/scoring.py`** (déjà stubbé) — `neighborhood_score(metrics)` combine prix médian DVF, INSEE jeunes/cadres, PPRI flag, accessibilité transports → 0-100 + 5 sous-scores. Populates `qs_neighborhood_score` HubSpot custom property (currently NULL). | 2h |
+| QS-106 | **Tools agent integration** — invoke simulators when query mentions Pinel / LMNP / Denormandie / "rentabilité" / "mensualité". Heuristic match + parameter extraction (price, durée, zone). | 1h |
+| QS-107 | **Synthesis mandatory section "Simulation chiffrée"** — when fiscal/financial sim data present in Tools output, force a section with concrete €€€ numbers in the brief. | 0.5h |
+
+### E12 — Client-facing artefacts (~10h)
+
+> Le livrable final pour le client : PDF Lettre de Mission audit-ready.
+
+| ID | Story | Estimate |
+|---|---|---|
+| QS-110 | **PDF generator** (`app/tools/pdf.py`) — `weasyprint`, header ORIAS+AMF+SARL boilerplate, sections (résumé / éléments / simulations / recommandation / sources), pied de page avec disclaimer CIF. | 3h |
+| QS-111 | **HubSpot file upload + association** — `POST /files/v3/files` (Free-tier compatible), associate to deal via `/crm/v3/objects/deals/{id}/associations/files`. | 2h |
+| QS-112 | **PDF assembly** — pulls synth answer + Tools simulations + RAG citations cliquables + signature placeholders (CGP, client). | 2h |
+| QS-113 | **Download endpoint** `GET /api/dossier/{deal_id}.pdf` — FastAPI streams the PDF blob. | 1h |
+| QS-114 | **Streamlit "Télécharger Lettre de Mission" button** — appears alongside "Save to HubSpot"; hits the download endpoint, browser downloads. | 1h |
+| QS-115 | **Audit log of generated PDFs** — Postgres table `dossier_audit` (deal_id, generated_at, query_hash, citations_used, broker_user) — compliance trail for ACPR/AMF inspection. | 1h |
+
+### E13 — Live DVF + comparative pricing (~8h)
+
+> Sortir du "données récentes non disponibles" — donner les vraies transactions.
+
+| ID | Story | Estimate |
+|---|---|---|
+| QS-120 | **Real Cerema API call** — parse OpenAPI spec via MCP `get_dataservice_openapi_spec`, build typed httpx client, handle pagination, types Pydantic pour transactions. | 3h |
+| QS-121 | **DuckDB fallback** (the deferred QS-022) — download dvf.csv.gz at boot or on-demand; `SELECT … FROM read_csv_auto('dvf.csv.gz') WHERE code_insee = ?`. Cache to `data/dvf_cache/`. | 2h |
+| QS-122 | **Median computation** — prix médian €/m² par IRIS sur 12 derniers mois; nb transactions; écart-type. | 1h |
+| QS-123 | **Comparative pricing** — compare le prix client (220 k€ / 45 m² = 4 888 €/m²) au médian, flag écart > ±15 %. | 1h |
+| QS-124 | **Synthesis mandatory section "Données de marché"** — when DVF data present, force the section with median €/m², count, écart au prix client. | 1h |
+
+---
+
+## v2 Roadmap — SaaS-ify the platform (~26h, 2 sprints)
+
+Beyond v1.5, the natural evolution is to **open the platform to other independent CGP cabinets** as a B2B SaaS tier — exactly the "vision business" called out in the user research.
+
+| Sprint | Phase | Hours | Goal |
+|---|---|---|---|
+| **S8 — Marketplace & B2B integrations** | 12 | ~12h | "Sarah uploade son catalogue de programmes neufs; QuartierScope matche automatiquement le besoin client à 1-3 programmes éligibles, avec disclosure de toute commission." |
+| **S9 — Multi-tenant SaaS** | 13 | ~14h | "Sarah peut inviter d'autres CGPs indépendants à utiliser leur propre QuartierScope tenant — auth, billing, données isolées." |
+
+### E14 — Marketplace & B2B integrations (~12h)
+
+| ID | Story | Estimate |
+|---|---|---|
+| QS-130 | **Programmes neufs catalog ingestion** — CSV/JSON upload, schema (commune, prix, surfaces, dispositifs Pinel/LMNP éligibles, livraison). Stored in Qdrant as a separate collection or in Postgres. | 3h |
+| QS-131 | **Matching engine** — client criteria (budget, ville, dispositif fiscal cible, surface) → ranked list of 3 programmes. Hybrid: SQL filter + vector similarity on description. | 3h |
+| QS-132 | **Conflict-of-interest tagging** — chaque programme a un flag `has_commission` + montant. Surface au client via le PDF Lettre de Mission. | 1h |
+| QS-133 | **Notaire connector** — placeholder MCP-style integration (Notaires API, Notaviz, etc.); read-only initially (vérifier le bien existe au cadastre). | 2h |
+| QS-134 | **Gestion locative connector** — webhooks pour statut "loué/vacant" feedback dans HubSpot deal lifecycle. | 2h |
+| QS-135 | **Disclosure surfacing** — Lettre de Mission PDF affiche explicitement "ce cabinet perçoit X € de commission sur ce programme" si applicable. | 1h |
+
+### E15 — Multi-tenant SaaS (~14h)
+
+| ID | Story | Estimate |
+|---|---|---|
+| QS-140 | **Auth** — Clerk (Vercel Marketplace) or HubSpot OAuth. Each session bound to a `tenant_id`. | 3h |
+| QS-141 | **Per-tenant Qdrant collection** — `tenant_{id}_corpus` (custom internal docs) en plus du corpus public partagé. Retrieval queries both. | 3h |
+| QS-142 | **Stripe billing** — tiers (Solo €49/mo, Cabinet €149/mo, Studio €399/mo), metered overage on tokens > seuil. | 3h |
+| QS-143 | **Tenant onboarding flow** — signup → HubSpot OAuth connect → corpus customization (upload internal scoring guide) → first query free. | 2h |
+| QS-144 | **Usage metering** — tokens consumed, queries run, PDF dossiers generated, exposed in admin dashboard + Stripe usage record. | 2h |
+| QS-145 | **Per-tenant rate limits** — slowapi keyed by tenant_id, per-tier overrides. | 1h |
+
+---
+
+## Sprint plans (v1.5 + v2)
+
+### Sprint 5 — Fiscal & financial simulators (~14h)
+
+**Demo**: same Sarah query, but the brief now contains a *Simulation chiffrée* section: "Pinel zone B1 12 ans → réduction de 31 680 € (2 640 €/an) — LMNP régime réel → cashflow +187 €/mois — Mensualité crédit (taux 4 %, 25 ans, apport 20 %) → 928 €/mois — Stress test +1 pp HCSF: capacité OK, dépasse à +2 pp."
+
+**Risks**: Pinel rules change every loi de finances (annual). Mitigation: hardcode 2024 rules in a single source-of-truth dict per dispositif; tag with `effective_year` so re-runs flag stale.
+
+### Sprint 6 — Client-facing PDF artefacts (~10h)
+
+**Demo**: Sarah clicks "Télécharger Lettre de Mission" → 2-page PDF downloads with cabinet header, client name, simulations, citations as footnotes, signature blocks. Same PDF auto-attached to the HubSpot deal.
+
+**Risks**: HubSpot Free file upload limit (5 docs/account historically). Mitigation: rotate older PDFs (delete > 6 months) automatically.
+
+### Sprint 7 — Live DVF + comparative pricing (~8h)
+
+**Demo**: brief shows "Lyon 7e Guillotière — médiane DVF 2024-2026 : **5 200 €/m²** (n=147 transactions). Le bien à 4 888 €/m² est **6 % sous le médian** — alignement de marché OK."
+
+**Risks**: Cerema rate-limits or API down. Mitigation: DuckDB fallback (QS-121) is the safety net.
+
+### Sprint 8 — Marketplace & B2B integrations (~12h)
+
+**Demo**: Sarah uploads `programmes_neufs.csv` (20 lignes, ses partenaires promoteurs); next query for a Lyon Pinel client surfaces 2 matching programmes, with explicit "Commission cabinet : 4 200 €" disclosure on each.
+
+**Risks**: legal — surfacing commissions might trigger contractual issues with promoteurs. Mitigation: opt-in per-tenant, default off; CGP toggle.
+
+### Sprint 9 — Multi-tenant SaaS (~14h)
+
+**Demo**: signup at `quartierscope.app/signup` (need domain, BL-108) → OAuth HubSpot → first 5 queries free → Stripe paywall → working multi-tenant deployment. Sarah invites 3 confrères CGP indé via referral.
+
+**Risks**: data isolation bugs (one tenant seeing another's corpus) = catastrophic. Mitigation: integration test that seeds 2 tenants, runs queries, asserts cross-tenant leak == 0.
+
+---
+
+## Total budget after v1 + v1.5 + v2
+
+| Phase | Hours | Cumulative |
+|---|---|---|
+| v1 (S1–S4, shipped) | ~44h | 44h |
+| v1.5 (S5–S7) | ~32h | 76h |
+| v2 (S8–S9) | ~26h | 102h |
+
+102h gets QuartierScope from "compliance/analysis layer" to "full CGP-immobilier SaaS competitor" with multi-tenant onboarding ready.
+
+---
+
+## Backlog (out of any planned sprint)
+
+The items below are still future-future or have been moved into scheduled sprints:
+
+- ~~BL-100: Multi-tenant deployment~~ → moved to Sprint 9 (QS-141, QS-145)
+- ~~BL-101: HubSpot OAuth app~~ → moved to Sprint 9 (QS-140)
+- BL-102: Mistral default for GDPR-strict CGP customers (env toggle exists; needs benchmark + comms)
 - BL-103: Langfuse v3 upgrade (needs droplet bump to 8GB)
 - BL-104: Event-driven RAG re-ingestion pipeline
-- BL-105: Next.js + Vercel AI Chat SDK frontend
-- BL-106: HubSpot 2-way sync (CRM updates pulled back into context)
+- BL-105: Next.js + Vercel AI Chat SDK frontend (replaces Streamlit when SaaS scale demands it)
+- BL-106: HubSpot 2-way sync (CRM updates pulled back into context for follow-up queries)
 - BL-107: Mortgage-broker pivot v2 (different RAG corpus, ACPR audit hook)
-- BL-108: Custom domain + Caddy auto-TLS (`quartierscope.app`)
-- BL-109: DO Spaces for shared DVF cache across multiple droplets
-- BL-110: Migrate HubSpot integration to "MCP Auth Apps" (HubSpot's native MCP server) once it leaves beta — replaces Private App token + custom MCP wrapper
+- BL-108: Custom domain + Caddy auto-TLS (`quartierscope.app`) — prerequisite for Sprint 9
+- ~~BL-109: DO Spaces for shared DVF cache~~ → addressed by Sprint 7 (QS-121 DuckDB local cache)
+- BL-110: Migrate HubSpot integration to "MCP Auth Apps" (HubSpot's native MCP server) once it leaves beta
+- BL-111: White-label tenant theming (logos, colors) — for Cabinet/Studio tiers
+- BL-112: Mobile app (React Native) — Sarah on the road during client visits
+- BL-113: Compliance auto-report — quarterly PDF aggregating all dossiers generated, for ACPR/AMF preparation
 
 ---
 
