@@ -57,6 +57,31 @@ def _detect_aspects(query: str) -> list[str]:
     return detected
 
 
+def _build_forced_subqueries(query: str, aspects: list[str]) -> list[str]:
+    """Deterministic sub-queries that always run when a known pattern is detected.
+
+    These are commune-specific risk/regulation lookups that the LLM-based
+    decompose tends to miss. They guarantee the PPRI corpus surfaces when a
+    commune is mentioned with risk concerns, etc.
+    """
+    from app.agents.tools_agent import _extract_commune
+
+    subqs: list[str] = []
+    label, insee = _extract_commune(query)
+    commune = label or (insee or "")
+
+    if commune and "risque" in aspects:
+        subqs.append(f"risque inondation PPRI zone inondable {commune}")
+    if commune and "tension_locative" in aspects:
+        subqs.append(f"zones tendues encadrement loyers {commune}")
+    if "rentabilite" in aspects:
+        subqs.append("calcul rentabilité brute nette LMNP location meublée")
+    if "dpe" in aspects:
+        subqs.append("diagnostic performance énergétique DPE classes A à G")
+
+    return subqs
+
+
 async def _decompose(query: str, aspects: list[str]) -> list[str]:
     """Use a small LLM to split a multi-aspect query into focused sub-queries."""
     if not settings.openai_api_key or len(aspects) < 2:
@@ -122,9 +147,13 @@ async def retrieve(query: str, k: int = DEFAULT_K) -> RagResult:
 
     try:
         aspects = _detect_aspects(query)
-        sub_queries: list[str] = []
+        sub_queries: list[str] = _build_forced_subqueries(query, aspects)
         if len(aspects) >= 2:
-            sub_queries = await _decompose(query, aspects)
+            sub_queries.extend(await _decompose(query, aspects))
+
+        # dedup while preserving order
+        seen_q: set[str] = set()
+        sub_queries = [q for q in sub_queries if not (q in seen_q or seen_q.add(q))]
 
         all_queries = [query] + sub_queries
         results_per_query = await asyncio.gather(
