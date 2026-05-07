@@ -108,11 +108,11 @@ services:
       DATABASE_URL: postgresql://postgres:${LANGFUSE_DB_PASSWORD}@langfuse-db:5432/langfuse
       NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET}
       SALT: ${LANGFUSE_SALT}
-      NEXTAUTH_URL: http://${DROPLET_HOST:-localhost}/langfuse
+      NEXTAUTH_URL: http://${DROPLET_HOST:-localhost}:3000
       TELEMETRY_ENABLED: "false"
       AUTH_DISABLE_USERNAME_PASSWORD: "false"
-    expose:
-      - "3000"
+    ports:
+      - "3000:3000"
 
 volumes:
   caddy-data:
