@@ -68,7 +68,9 @@ jobs:
           set -euo pipefail
           cd /home/quartierscope/quartierscope
           docker compose pull --ignore-buildable || true
-          docker compose up -d --build --remove-orphans
+          # --force-recreate: re-read env_file even when image hash unchanged
+          # so droplet-side .env edits propagate without manual intervention.
+          docker compose up -d --build --force-recreate --remove-orphans
           docker compose ps
           EOSSH
 

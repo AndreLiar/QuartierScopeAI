@@ -209,6 +209,16 @@ After re-copy with the Copy button, the full 36-char UUID landed and the API cal
 
 Total elapsed time on infra + integrations: **~4 hours** of compressed work — about 1/10 of the 44h budget.
 
+### Stumble — Langfuse env vars not picked up after `restart`
+
+After setting `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` in the droplet's `.env`, then running `docker compose restart app`, traces still didn't flow. Inspection inside the container showed the env vars were empty.
+
+**Cause**: `docker compose restart` re-launches the existing container as-is — it does **not** re-evaluate `env_file:` directives. The running container kept the env snapshot from when it was first created.
+
+**Fix**: `docker compose up -d --force-recreate <service>`. Picks up env changes immediately. Made this the default in the deploy workflow so `.env` edits always propagate without manual intervention.
+
+**Lesson**: `restart` ≠ "fresh state". When env or compose-file inputs change, you need recreate. Bake it into deploy from day one.
+
 ## Aggregate lessons
 
 1. **Spikes before code.** 2h of feasibility checks saved 6h+ of mid-flight pivot.
