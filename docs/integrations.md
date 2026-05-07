@@ -35,6 +35,21 @@ This actually demonstrates a *more advanced* capability than raw Tabular queries
 
 ## HubSpot Free + Service Keys (beta)
 
+> ⚠️ HubSpot is mid-2025.2 platform migration. **"Private Apps" is being deprecated** in favour of **"Service Keys (beta)"**. Existing Private App tokens still work, but new tokens should be created as Service Keys. Both produce a `pat-na1-…` Bearer token usable identically against the CRM v3 API.
+
+### How to create a Service Key (verified working path)
+
+1. Login to your **regular HubSpot Hub** at [app.hubspot.com](https://app.hubspot.com) (not the Developer Portal — see the rabbit hole below for why)
+2. Click the **⚙️ gear icon** (top-right) → **Settings**
+3. Left sidebar → **Integrations** → **Service Keys (beta)**
+4. **Create a new service key** — name it `QuartierScope AI`
+5. Scopes (the 7 listed below)
+6. Click **Generate** → use the **"Copy"** button (don't manually select — HubSpot truncates the displayed value with `…`)
+7. Paste into droplet `.env` as `HUBSPOT_TOKEN=pat-na1-…`
+8. `docker compose up -d --force-recreate app streamlit`
+
+### API surface used
+
 - **API base**: `https://api.hubapi.com/crm/v3/`
 - **Auth**: `Authorization: Bearer pat-na1-…`
 - **Scopes used**:

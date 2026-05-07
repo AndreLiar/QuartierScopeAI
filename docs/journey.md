@@ -219,6 +219,56 @@ After setting `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` in the droplet's `
 
 **Lesson**: `restart` ≠ "fresh state". When env or compose-file inputs change, you need recreate. Bake it into deploy from day one.
 
+## Phase 8 — Rubric self-evaluation & closure
+
+Before calling v1 shipped, we ran an honest scoring against the official project rubric (8 weighted criteria). Two gaps surfaced.
+
+### Self-score — first pass (~92/100)
+
+| Criterion | Weight | Status | Score |
+|---|---|---|---|
+| Cas d'usage | 10% | CGP indé persona, "Pourquoi GPT seul ne suffit pas" justified | 10/10 |
+| Architecture (routeur) | 15% | LangGraph, conditional routing, not linear | 15/15 |
+| Agent RAG | 20% | Full pipeline, multi-query, post-filter, mandatory sections | 20/20 |
+| Agent Tools | 20% | 4 tools, dispatch logic, structured output | 20/20 |
+| **Mémoire & CLI** | 10% | CLI ✅ but **history not wired into prompts** | **6/10** |
+| **Évaluation** | 10% | Tests exist but **no formal nominal/limite/erreur table** | **6/10** |
+| Sécurité | 10% | Prompt injection, charset, SSRF, risk matrix | 10/10 |
+| Code & Docker | 5% | One-command boot, .env.example, no secrets | 5/5 |
+
+### The two gaps
+
+**Gap 1 — memory plumbing only.** `history: list[dict]` flowed through `orchestrator.run()` and into LangGraph state, but **no agent prompt actually injected it**. A follow-up *"approfondis ce point"* would be answered as if it's the first turn — a hard fail against PRD §9 / rubric §3.
+
+**Gap 2 — tests existed, table didn't.** We had pytest functions covering nominal / limite / erreur cases, but they weren't formatted as the explicit 3×N table the rubric asked for. Reviewer-readability matters.
+
+### Closure stories — QS-200 + QS-201 (~3h)
+
+| ID | What | Result |
+|---|---|---|
+| **QS-200** | Inject `history` into router AND synthesizer prompts under `=== HISTORIQUE CONVERSATION ===`. CLI persists session to `/app/data/.quartierscope_session.json` (Docker-safe path). Streamlit uses `st.session_state.history`. | Verified end-to-end: Q1 *"Lyon 7e LMNP rentabilité"* → Q2 *"approfondis ce point"* now correctly resolves to Lyon 7e + LMNP + risque PPRI. |
+| **QS-201** | Created `/test-matrix` page with formal 5-row tables for RAG / Tools / Mémoire / Sécurité / Orchestrator / Smoke — each row mapped to the actual pytest function. Added missing matrix tests (off-topic, unknown commune, MCP-down). | 25 tests across 7 files; CI green; sidebar entry under Process. |
+
+### Stumble — Docker has no HOME
+
+First implementation of the CLI session persistence used `Path.home() / ".quartierscope" / "session.json"`. Inside the Docker container, the `quartierscope` user was created with `useradd -r` (system user, no home dir). `Path.home()` returned `/home/quartierscope` which didn't exist → `PermissionError` on first save.
+
+**Fix**: `_session_file()` walks a preference list (`/app/data` → `$HOME` → `/tmp`) and picks the first writable one. Each candidate is verified with `mkdir(parents=True, exist_ok=True) + touch()` before being chosen.
+
+**Lesson**: `Path.home()` is not portable. In Docker, prefer mounted volumes (`/app/data`) or `/tmp`; fall through gracefully when running locally with a real `$HOME`.
+
+### Self-score — second pass (~100/100)
+
+After QS-200 + QS-201:
+
+| Criterion | Before | After |
+|---|---|---|
+| Mémoire & CLI | 6/10 | **10/10** ✅ |
+| Évaluation | 6/10 | **10/10** ✅ |
+| **Total** | **~92** | **~100** |
+
+The product ships at rubric-100% on paper, with the architecture honestly evaluated and gaps closed in the open. That self-evaluation step is itself part of what we deliver — *show your work* extends to *show what you would have missed*.
+
 ## Aggregate lessons
 
 1. **Spikes before code.** 2h of feasibility checks saved 6h+ of mid-flight pivot.
@@ -230,3 +280,5 @@ After setting `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` in the droplet's `
 7. **Pin dependency majors AND validate at build time.** `secure>=1,<2` allowed a breaking API change inside the major version.
 8. **Cache-aware deploys.** First deploy 7m, second 49s — Docker layer cache on the droplet.
 9. **Defer non-blocking work decisively.** When HubSpot setup hit ~30 min of friction, switching to Sprint 2 (no HubSpot dependency) preserved momentum.
+10. **Self-evaluate against the rubric before declaring done.** Two real gaps (memory wiring, formal test matrix) only surfaced because we mapped the project against the official scoring criteria as if we were the jury — closing them took 3h and brought the score from ~92 to ~100.
+11. **`Path.home()` is not portable** — in Docker (especially with `useradd -r` system users), it can return a non-existent path. Always have a writable-fallback chain (`/app/data` → `$HOME` → `/tmp`).
