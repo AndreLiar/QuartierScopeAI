@@ -6,7 +6,7 @@ i.e. the second turn must have access to the first turn's context.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
