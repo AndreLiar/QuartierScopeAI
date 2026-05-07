@@ -59,10 +59,12 @@ async def test_run_tools_unknown_commune_returns_empty() -> None:
 
 @pytest.mark.asyncio
 async def test_dvf_default_when_mcp_unreachable(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Tools erreur — MCP server down → DEFAULT_DISCOVERY returned, no crash."""
-    from app import config
+    """Tools erreur — MCP failure → DEFAULT_DISCOVERY returned, no crash."""
 
-    monkeypatch.setattr(config.settings, "mcp_datagouv_url", "http://mcp-not-here.invalid/mcp")
+    async def _raise(*args, **kwargs):  # type: ignore[no-untyped-def]
+        raise RuntimeError("MCP unreachable (simulated)")
+
+    monkeypatch.setattr(dvf.DataGouvMCP, "__aenter__", _raise)
     discovery = await dvf.discover_cerema_api(force_refresh=True)
     assert discovery["name"]
     assert "Données Foncières" in discovery["name"] or "Cerema" in discovery["name"]
