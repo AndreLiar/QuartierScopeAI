@@ -46,7 +46,11 @@ class OrchestratorResult(TypedDict):
 
 
 async def _route_node(state: GraphState) -> dict:
-    decision = await router.classify(state["query"], state.get("deal_id"))
+    decision = await router.classify(
+        state["query"],
+        state.get("deal_id"),
+        history=state.get("history") or [],
+    )
     return {
         "decision": decision,
         "trace": (state.get("trace") or [])
@@ -92,7 +96,12 @@ async def _tools_node(state: GraphState) -> dict:
 
 
 async def _synth_node(state: GraphState) -> dict:
-    synth = await synthesizer.synthesize(state["query"], state.get("rag", {}), state.get("tools", {}))
+    synth = await synthesizer.synthesize(
+        state["query"],
+        state.get("rag", {}),
+        state.get("tools", {}),
+        history=state.get("history") or [],
+    )
     return {
         "synthesis": synth,
         "trace": (state.get("trace") or [])

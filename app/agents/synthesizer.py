@@ -200,7 +200,28 @@ def _build_citations_list(
     return [by_source[s] for s in used_sources if s in by_source]
 
 
-async def synthesize(query: str, rag: dict, tools: dict) -> SynthResult:
+def _format_history_block(history: list[dict] | None) -> str:
+    if not history:
+        return ""
+    last = history[-6:]
+    lines = ["=== HISTORIQUE CONVERSATION ==="]
+    for turn in last:
+        role = turn.get("role", "?")
+        content = (turn.get("content") or "")[:500]
+        lines.append(f"{role.upper()}: {content}")
+    lines.append(
+        "Tiens compte de cet historique pour les questions de suivi "
+        "(ex: 'approfondis ce point', 'refais l'analyse pour une famille')."
+    )
+    return "\n".join(lines) + "\n\n"
+
+
+async def synthesize(
+    query: str,
+    rag: dict,
+    tools: dict,
+    history: list[dict] | None = None,
+) -> SynthResult:
     rag_chunks = rag.get("chunks", []) if rag else []
     tools_sources = tools.get("sources", []) if tools else []
 
@@ -230,6 +251,7 @@ async def synthesize(query: str, rag: dict, tools: dict) -> SynthResult:
 
     llm = ChatOpenAI(model=SYNTH_MODEL, temperature=0.0, api_key=settings.openai_api_key)
     user = (
+        f"{_format_history_block(history)}"
         f"QUESTION: {query}\n\n"
         f"=== EXTRAITS RAG ===\n{_format_rag_chunks(rag)}\n\n"
         f"=== DONNÉES LIVE ===\n{_format_tools_data(tools)}\n\n"

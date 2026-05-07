@@ -1,4 +1,6 @@
 import asyncio
+import json
+from pathlib import Path
 
 import typer
 from rich.console import Console
@@ -9,13 +11,40 @@ from app.orchestrator import run as orchestrator_run
 app = typer.Typer(help="QuartierScope AI — analyse de quartier pour CGP indé.")
 console = Console()
 
+SESSION_FILE = Path.home() / ".quartierscope" / "session.json"
+MAX_HISTORY_TURNS = 6  # 3 user/assistant pairs
+
+
+def _load_history() -> list[dict]:
+    if not SESSION_FILE.exists():
+        return []
+    try:
+        return json.loads(SESSION_FILE.read_text(encoding="utf-8"))[-MAX_HISTORY_TURNS:]
+    except Exception:
+        return []
+
+
+def _save_history(history: list[dict]) -> None:
+    SESSION_FILE.parent.mkdir(parents=True, exist_ok=True)
+    SESSION_FILE.write_text(json.dumps(history[-MAX_HISTORY_TURNS:], ensure_ascii=False), encoding="utf-8")
+
 
 @app.command()
 def query(
     text: str = typer.Argument(..., help="La question à poser"),
     deal: str | None = typer.Option(None, help="ID du deal HubSpot pour rattacher l'analyse"),
+    new_session: bool = typer.Option(False, "--new", help="Reset conversation history before answering"),
 ) -> None:
-    result = asyncio.run(orchestrator_run(query=text, history=[], deal_id=deal, confirm=False))
+    if new_session:
+        _save_history([])
+    history = _load_history()
+    if history:
+        console.print(f"[dim]Historique: {len(history)} message(s) précédent(s) — utilise --new pour reset[/dim]")
+    result = asyncio.run(orchestrator_run(query=text, history=history, deal_id=deal, confirm=False))
+    history.append({"role": "user", "content": text})
+    if not result.get("refused"):
+        history.append({"role": "assistant", "content": result.get("answer", "")[:1000]})
+    _save_history(history)
 
     tree = Tree(f"[bold]Question:[/bold] {text}")
     for step in result.get("trace", []):

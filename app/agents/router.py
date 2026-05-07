@@ -32,7 +32,23 @@ def _system_prompt() -> str:
     return PROMPT_PATH.read_text(encoding="utf-8")
 
 
-async def classify(query: str, deal_id: str | None = None) -> RouterDecision:
+def _format_history(history: list[dict] | None) -> str:
+    if not history:
+        return ""
+    last = history[-6:]
+    lines = ["", "=== HISTORIQUE CONVERSATION (3 derniers tours max) ==="]
+    for turn in last:
+        role = turn.get("role", "?")
+        content = (turn.get("content") or "")[:400]
+        lines.append(f"{role.upper()}: {content}")
+    return "\n".join(lines)
+
+
+async def classify(
+    query: str,
+    deal_id: str | None = None,
+    history: list[dict] | None = None,
+) -> RouterDecision:
     fallback: RouterDecision = {
         "mode": "rag+tools",
         "needs_action": deal_id is not None,
@@ -51,11 +67,15 @@ async def classify(query: str, deal_id: str | None = None) -> RouterDecision:
     user = f"Query: {query}"
     if deal_id:
         user += f"\ndeal_id: {deal_id}"
+    user += _format_history(history)
 
     try:
         msg = await llm.ainvoke(
             [("system", _system_prompt()), ("user", user)],
-            config=trace_config(name="router", metadata={"deal_id": deal_id}),
+            config=trace_config(
+                name="router",
+                metadata={"deal_id": deal_id, "history_turns": len(history or [])},
+            ),
         )
         raw = msg.content if isinstance(msg.content, str) else str(msg.content)
         data = json.loads(raw)

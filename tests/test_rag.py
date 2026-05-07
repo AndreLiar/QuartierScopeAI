@@ -37,9 +37,22 @@ async def test_refuses_when_qdrant_unreachable(monkeypatch: pytest.MonkeyPatch) 
 @pytest.mark.skipif(os.getenv("QS_INTEGRATION") != "1", reason="needs live Qdrant + corpus")
 @pytest.mark.asyncio
 async def test_live_retrieval_returns_citations() -> None:
+    """RAG nominal — relevant query returns chunks + citations."""
     result = await rag_agent.retrieve("méthode de scoring quartier locatif", k=5)
     assert result["refused"] is False
     assert len(result["citations"]) > 0
     for c in result["citations"]:
         assert c["source"]
         assert c["score"] >= 0.0
+
+
+@pytest.mark.skipif(os.getenv("QS_INTEGRATION") != "1", reason="needs live Qdrant + corpus")
+@pytest.mark.asyncio
+async def test_refuses_off_topic() -> None:
+    """RAG limite (hors sujet) — recipe query has nothing in the corpus."""
+    result = await rag_agent.retrieve("Quelle est la recette de la quiche lorraine ?", k=5)
+    # either refused outright, or returns chunks with low scores far from the topic
+    if not result["refused"]:
+        scores = [c.get("score", 0.0) for c in result["chunks"]]
+        # off-topic should not have any high-confidence match
+        assert all(s < 0.55 for s in scores), f"got suspiciously high scores: {scores}"

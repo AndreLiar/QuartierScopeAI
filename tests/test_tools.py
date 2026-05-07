@@ -46,3 +46,23 @@ def test_extract_dataservices_handles_text_content() -> None:
     items = dvf._extract_dataservices([FakeContent()])
     assert len(items) == 1
     assert items[0]["name"] == "DVF API"
+
+
+@pytest.mark.asyncio
+async def test_run_tools_unknown_commune_returns_empty() -> None:
+    """Tools limite — no commune in query → no DVF, empty data."""
+    from app.agents import tools_agent
+
+    result = await tools_agent.run_tools("Quelle est la météo sur Mars ?")
+    assert "dvf" not in result["data"]
+
+
+@pytest.mark.asyncio
+async def test_dvf_default_when_mcp_unreachable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tools erreur — MCP server down → DEFAULT_DISCOVERY returned, no crash."""
+    from app import config
+
+    monkeypatch.setattr(config.settings, "mcp_datagouv_url", "http://mcp-not-here.invalid/mcp")
+    discovery = await dvf.discover_cerema_api(force_refresh=True)
+    assert discovery["name"]
+    assert "Données Foncières" in discovery["name"] or "Cerema" in discovery["name"]

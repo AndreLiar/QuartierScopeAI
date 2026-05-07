@@ -60,6 +60,7 @@ export default defineConfig({
         text: 'Process',
         items: [
           { text: 'Sprints (epics & stories)', link: '/sprints' },
+          { text: 'Test matrix (rubric §5)', link: '/test-matrix' },
           { text: 'Setup journey & lessons', link: '/journey' },
         ],
       },

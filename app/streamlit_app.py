@@ -63,8 +63,16 @@ with col_d:
 run_btn = st.button("Lancer l'analyse", type="primary")
 
 
+if "history" not in st.session_state:
+    st.session_state.history = []
+
+
 def _post_query(query: str, deal_id: str | None, confirm: bool) -> dict[str, Any]:
-    payload = {"query": query, "history": [], "confirm": confirm}
+    payload: dict[str, Any] = {
+        "query": query,
+        "history": st.session_state.history[-6:],
+        "confirm": confirm,
+    }
     if deal_id:
         payload["deal_id"] = deal_id
     r = httpx.post(f"{API_BASE}/query", json=payload, timeout=TIMEOUT)
@@ -116,6 +124,14 @@ def _render_actions_bar(result: dict) -> None:
                 st.error(f"{tool} → {r.get('error', 'error')}")
 
 
+if st.session_state.history:
+    with st.expander(f"💬 Historique conversation ({len(st.session_state.history)} message(s))"):
+        for turn in st.session_state.history[-6:]:
+            st.markdown(f"**{turn['role']}** : {turn['content'][:300]}…")
+        if st.button("🧹 Reset historique"):
+            st.session_state.history = []
+            st.rerun()
+
 if run_btn and query:
     with st.spinner("Routeur → RAG → Tools → Synthèse…"):
         try:
@@ -133,6 +149,8 @@ if run_btn and query:
         st.write(result.get("answer", "—"))
         _render_citations(result.get("citations", []))
         _render_actions_bar(result)
+        st.session_state.history.append({"role": "user", "content": query})
+        st.session_state.history.append({"role": "assistant", "content": result.get("answer", "")[:1000]})
 
 st.divider()
 st.caption("Multi-agents : Routeur (gpt-4o-mini) · RAG (Qdrant 264 chunks) · Tools (data.gouv MCP + Tavily) · Actions (HubSpot)")
