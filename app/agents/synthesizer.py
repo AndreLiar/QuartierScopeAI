@@ -34,8 +34,64 @@ class SynthResult(TypedDict):
     refused: bool
 
 
+_BASE_PROMPT_CACHE: str | None = None
+
+
 def _system_prompt() -> str:
-    return PROMPT_PATH.read_text(encoding="utf-8")
+    global _BASE_PROMPT_CACHE
+    if _BASE_PROMPT_CACHE is None:
+        _BASE_PROMPT_CACHE = PROMPT_PATH.read_text(encoding="utf-8")
+    return _BASE_PROMPT_CACHE
+
+
+# When chunks of a given category are present, the LLM is REQUIRED to include
+# the matching section. Avoids the failure mode where multi-query retrieval
+# surfaces PPRI chunks but the LLM skips the risk dimension.
+SECTION_REQUIREMENTS: dict[str, str] = {
+    "regulation": (
+        "**Régulation / dispositif fiscal** — cite la régulation pertinente "
+        "(Pinel, LMNP, Denormandie, encadrement des loyers, zones tendues)"
+    ),
+    "risk": (
+        "**Risques géographiques** — mentionne explicitement si la commune est "
+        "concernée par un PPRI (Plan de Prévention des Risques d'Inondation), "
+        "zones inondables ou autres risques naturels. Ne pas omettre cette section "
+        "si des extraits de cette catégorie sont fournis."
+    ),
+    "methodology": (
+        "**Méthodologie d'évaluation** — explicite le calcul de rentabilité "
+        "(brute / nette / nette nette), critères de scoring quartier, ou indicateurs DVF"
+    ),
+    "compliance": (
+        "**Conformité CGP/CIF** — devoir de conseil, Lettre de Mission AMF, "
+        "obligations ORIAS"
+    ),
+    "pricing": (
+        "**Données de marché** — prix au m², transactions récentes DVF, "
+        "écart au médian si disponible"
+    ),
+}
+
+
+def _build_dynamic_prompt(chunks: list[dict]) -> str:
+    categories = sorted({c.get("category") or "" for c in chunks})
+    relevant = [c for c in categories if c in SECTION_REQUIREMENTS]
+    if not relevant:
+        return _system_prompt()
+
+    addendum = (
+        "\n\n=== SECTIONS OBLIGATOIRES POUR CETTE REQUÊTE ===\n"
+        "Au vu des extraits fournis, ta réponse DOIT comporter une section abordant "
+        "explicitement CHACUN des points suivants. Pour chaque section, cite au "
+        "moins un [Source: ...] issu d'extraits de la catégorie correspondante.\n\n"
+    )
+    for cat in relevant:
+        addendum += f"- {SECTION_REQUIREMENTS[cat]}\n"
+    addendum += (
+        "\nN'omets AUCUNE section ci-dessus. Si tu n'as pas d'information sur "
+        "un point, dis-le explicitement plutôt que de l'omettre."
+    )
+    return _system_prompt() + addendum
 
 
 def _format_rag_chunks(rag: dict) -> str:
@@ -179,8 +235,9 @@ async def synthesize(query: str, rag: dict, tools: dict) -> SynthResult:
         "Rappel: ne cite que les noms de sources fournis ci-dessus, verbatim."
     )
 
+    system_prompt = _build_dynamic_prompt(rag_chunks)
     try:
-        msg = await llm.ainvoke([("system", _system_prompt()), ("user", user)])
+        msg = await llm.ainvoke([("system", system_prompt), ("user", user)])
         raw_answer = msg.content if isinstance(msg.content, str) else str(msg.content)
     except Exception as exc:
         logger.warning("synth-failed: %s", exc)
