@@ -11,22 +11,42 @@ from app.orchestrator import run as orchestrator_run
 app = typer.Typer(help="QuartierScope AI — analyse de quartier pour CGP indé.")
 console = Console()
 
-SESSION_FILE = Path.home() / ".quartierscope" / "session.json"
-MAX_HISTORY_TURNS = 6  # 3 user/assistant pairs
+import os
+
+MAX_HISTORY_TURNS = 6
+
+
+def _session_file() -> Path:
+    """Pick the first writable parent directory in this preference order:
+    /app/data (Docker volume) → $HOME → /tmp.
+    """
+    for parent in (Path("/app/data"), Path(os.environ.get("HOME") or "/tmp"), Path("/tmp")):
+        try:
+            target = parent / ".quartierscope_session.json"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.touch(exist_ok=True)
+            return target
+        except (PermissionError, OSError):
+            continue
+    return Path("/tmp/quartierscope_session.json")
 
 
 def _load_history() -> list[dict]:
-    if not SESSION_FILE.exists():
+    sf = _session_file()
+    if not sf.exists() or sf.stat().st_size == 0:
         return []
     try:
-        return json.loads(SESSION_FILE.read_text(encoding="utf-8"))[-MAX_HISTORY_TURNS:]
+        return json.loads(sf.read_text(encoding="utf-8"))[-MAX_HISTORY_TURNS:]
     except Exception:
         return []
 
 
 def _save_history(history: list[dict]) -> None:
-    SESSION_FILE.parent.mkdir(parents=True, exist_ok=True)
-    SESSION_FILE.write_text(json.dumps(history[-MAX_HISTORY_TURNS:], ensure_ascii=False), encoding="utf-8")
+    sf = _session_file()
+    try:
+        sf.write_text(json.dumps(history[-MAX_HISTORY_TURNS:], ensure_ascii=False), encoding="utf-8")
+    except (PermissionError, OSError):
+        pass
 
 
 @app.command()
