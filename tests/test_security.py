@@ -12,17 +12,17 @@ from app.security import (
 
 
 def test_query_request_rejects_too_long() -> None:
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         QueryRequest(query="x" * 5000)
 
 
 def test_query_request_rejects_too_short() -> None:
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         QueryRequest(query="ab")
 
 
 def test_query_request_rejects_disallowed_charset() -> None:
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         QueryRequest(query="DROP TABLE users; -- 漢字")
 
 
@@ -86,6 +86,6 @@ def test_query_request_accepts_injection_string_for_validation(payload: str) -> 
     and `prompts/router.txt` for the refusal triggers."""
     try:
         qr = QueryRequest(query=payload)
-        assert isinstance(qr.query, str)
-    except Exception:
-        pass
+    except ValueError:
+        return
+    assert isinstance(qr.query, str)
