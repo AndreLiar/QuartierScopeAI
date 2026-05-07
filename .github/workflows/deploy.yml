@@ -41,6 +41,7 @@ jobs:
             --exclude 'terraform/' \
             --exclude '.terraform/' \
             --exclude 'data/dvf_cache/' \
+            --exclude 'data/corpus/raw/' \
             --exclude '.env' \
             --exclude '.github/' \
             ./ "quartierscope@${DROPLET_HOST}:/home/quartierscope/quartierscope/"
