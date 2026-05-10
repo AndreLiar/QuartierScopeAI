@@ -121,7 +121,7 @@ These have been violated and re-imposed multiple times — keep them in mind:
 - FastAPI · Typer + Rich CLI · Streamlit UI
 - HubSpot Free via Service Keys (beta) — Bearer `pat-na1-…`
 - Caddy reverse proxy (HTTP only, no domain) · Docker Compose · DigitalOcean droplet 4GB AMS3 ($24/mo) — **droplet decommissioned 2026-05-10; redeploy via [REDEPLOY.md](./REDEPLOY.md)**
-- GitHub Actions: 3 workflows (CI, Deploy, Docs) auto-deploy on push to `main`. Deploy uses `--force-recreate` to propagate `.env` changes (lesson from journey Phase 7).
+- GitHub Actions: 3 workflows on push to `main` — CI (active), Docs (active, path-scoped to `docs/**`), Deploy (**disabled since 2026-05-10** because the droplet is gone; re-enable with `gh workflow enable deploy.yml --repo AndreLiar/QuartierScopeAI` after [REDEPLOY.md](./REDEPLOY.md)). Deploy uses `--force-recreate` to propagate `.env` changes (lesson from journey Phase 7).
 - Local-dev artifacts (all gitignored): `backups/.env-droplet` (every key including Langfuse self-hosted secrets), `backups/langfuse-*.sql.gz` (40-table pg_dump of v1 trace history), `docker-compose.override.yml` (per-developer compose adaptations). Restore traces with `gzip -dc backups/langfuse-*.sql.gz | docker compose exec -T langfuse-db psql -U postgres langfuse`.
 
 ## Things that look like gaps but are intentional
