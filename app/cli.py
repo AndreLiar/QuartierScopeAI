@@ -1,5 +1,7 @@
 import asyncio
 import json
+import os
+import tempfile
 from pathlib import Path
 
 import typer
@@ -11,16 +13,15 @@ from app.orchestrator import run as orchestrator_run
 app = typer.Typer(help="QuartierScope AI — analyse de quartier pour CGP indé.")
 console = Console()
 
-import os
-
 MAX_HISTORY_TURNS = 6
 
 
 def _session_file() -> Path:
     """Pick the first writable parent directory in this preference order:
-    /app/data (Docker volume) → $HOME → /tmp.
+    /app/data (Docker volume) → $HOME → tempdir.
     """
-    for parent in (Path("/app/data"), Path(os.environ.get("HOME") or "/tmp"), Path("/tmp")):
+    tmp = Path(tempfile.gettempdir())
+    for parent in (Path("/app/data"), Path(os.environ.get("HOME") or tmp), tmp):
         try:
             target = parent / ".quartierscope_session.json"
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -28,7 +29,7 @@ def _session_file() -> Path:
             return target
         except (PermissionError, OSError):
             continue
-    return Path("/tmp/quartierscope_session.json")
+    return tmp / "quartierscope_session.json"
 
 
 def _load_history() -> list[dict]:
