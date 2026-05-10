@@ -43,13 +43,16 @@ features:
 
 ## État actuel
 
-Le projet est un **PoC 44h** documenté en mode "show your work":
+**v1 livré** (Sprints 1–4, ~44h) — multi-agents LangGraph en production pendant les sprints, puis **droplet décommissionné le 2026-05-10** pour stopper le run $24/mo. La stack reproduit à l'identique en local via `docker compose up -d`. Redeploy documenté dans [REDEPLOY.md](https://github.com/AndreLiar/QuartierScopeAI/blob/main/REDEPLOY.md) (~5 min).
 
-- ✅ Infrastructure provisionnée (Terraform, DigitalOcean AMS3, $24/mo)
-- ✅ Stack docker-compose (Caddy + FastAPI + Qdrant + Redis + Langfuse v2 + Postgres)
-- ✅ CI/CD opérationnel (GitHub Actions auto-deploy sur push to main)
+- ✅ Infrastructure provisionnée puis décommissionnée (Terraform, DigitalOcean AMS3, $24/mo)
+- ✅ Stack docker-compose (Caddy + FastAPI + Qdrant 264 chunks + Redis + Langfuse v2 + Postgres) — tourne en local
+- ✅ CI/CD opérationnel (GitHub Actions, 3 workflows : CI, Deploy, Docs)
 - ✅ Tous les secrets externes câblés (OpenAI, Tavily, HubSpot, MCP data.gouv)
-- ⏳ Sprint 2 en cours — agents RAG + Tools
+- ✅ 4 agents coopératifs (Routeur + RAG + Tools + Actions) avec citations enforced
+- ✅ Mémoire conversationnelle injectée dans les prompts (QS-200)
+- ⏳ v1.5 (Sprints 5–8, ~50h) — simulateurs fiscaux Pinel/LMNP, PDF Lettre de Mission, scoring quantitatif
+- ⏳ v2 (Sprint 9, ~8h) — multi-tenant
 
 [→ Voir le détail des sprints](/sprints)
 [→ Voir le journey complet (avec les ratés)](/journey)

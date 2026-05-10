@@ -8,19 +8,21 @@
 
 ---
 
-## Live demo
+## Status: cloud paused, runs locally
 
-| Surface | URL |
+The DigitalOcean droplet was decommissioned on **2026-05-10** to halt the $24/mo run. v1 ran in production for the duration of Sprints 1–4 and is fully reproducible locally — see [REDEPLOY.md](./REDEPLOY.md) for the path back to a fresh droplet.
+
+| Surface | URL (local) |
 |---|---|
-| Streamlit UI | http://165.22.192.94/ |
-| API health | http://165.22.192.94/health |
-| OpenAPI docs | http://165.22.192.94/docs |
-| Langfuse traces | http://165.22.192.94/langfuse |
+| Streamlit UI | http://localhost:8501/ |
+| API health | http://localhost:8000/health |
+| OpenAPI docs | http://localhost:8000/docs |
+| Langfuse traces | http://localhost:3100/ |
 | Documentation site | https://andreliar.github.io/QuartierScopeAI/ |
 
 ## What it is
 
-A **multi-agent AI copilot** built on **LangGraph** for a 2-person CGP firm advising rental investments (Pinel / LMNP / Denormandie). Single push triggers CI/CD to a DigitalOcean 4 GB droplet running Docker Compose.
+A **multi-agent AI copilot** built on **LangGraph** for a 2-person CGP firm advising rental investments (Pinel / LMNP / Denormandie). Runs as a Docker Compose stack — locally today, redeployable to a DigitalOcean 4 GB droplet via GitHub Actions in ~5 minutes (see [REDEPLOY.md](./REDEPLOY.md)).
 
 ```
 Sarah types  →  Router (gpt-4o-mini)
@@ -60,11 +62,12 @@ Sarah types  →  Router (gpt-4o-mini)
 git clone https://github.com/AndreLiar/QuartierScopeAI
 cd QuartierScopeAI
 cp .env.example .env  # edit OPENAI_API_KEY, TAVILY_API_KEY, HUBSPOT_TOKEN
-docker compose up -d
-docker compose exec app python -m app.ingest          # one-shot RAG corpus
-docker compose exec app python -m app smoke           # MCP connection test
+docker compose up -d                                   # 6 services, ~2 min first build
+docker compose exec app python -m app ingest-corpus    # one-shot RAG corpus → 264 chunks
 docker compose exec app python -m app rag "Comment scorer un quartier locatif?"
 ```
+
+A `docker-compose.override.yml` is auto-loaded if present and is gitignored — used for local-only adaptations (publishing `app:8000` and `streamlit:8501` directly, skipping Caddy, remapping Langfuse from 3000 to 3100 if your host port 3000 is busy). On the droplet, the override file isn't deployed, so the production compose runs unchanged.
 
 ## Sarah scenario (the demo)
 
@@ -83,14 +86,16 @@ Expected:
 
 ## Deploy
 
-Every push to `main` triggers GitHub Actions deploy:
-1. CI — ruff + pytest
-2. Deploy — rsync + `docker compose up -d` on the droplet
-3. Docs — VitePress build → GitHub Pages
+The deploy workflow is preserved and ready to fire. While the droplet is paused:
 
-Secrets needed in GitHub Actions:
-- `SSH_PRIVATE_KEY` — private key authorised on the droplet
-- `DROPLET_HOST` — public IP of the droplet
+- The CI and Docs workflows still run on every push to `main`.
+- The Deploy workflow no-ops harmlessly (the SSH target is gone) until `DROPLET_HOST` is updated to a new IP.
+
+To bring the cloud back up, follow [REDEPLOY.md](./REDEPLOY.md). The path is: `terraform apply` → update the `DROPLET_HOST` GitHub secret → push to main. Total redeploy time: ~5 minutes.
+
+GitHub Actions secrets that survive the destroy:
+- `SSH_PRIVATE_KEY` — private key authorised in the DigitalOcean account
+- `DROPLET_HOST` — needs updating to the new IP after `terraform apply`
 
 ## Security highlights (PRD §13)
 

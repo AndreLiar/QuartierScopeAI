@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-QuartierScope AI is a **shipped, operational** multi-agent AI copilot for independent French CGP firms. v1 (Sprints 1–4, ~44h) is in production at http://165.22.192.94/. v1.5 + v2 roadmap (~58h, Sprints 5–9) is documented in [SPRINTS.md](./SPRINTS.md) but not yet built.
+QuartierScope AI is a **shipped** multi-agent AI copilot for independent French CGP firms. v1 (Sprints 1–4, ~44h) ran in production on a DigitalOcean droplet during development. **The droplet was decommissioned on 2026-05-10 to halt the $24/mo run** (cost optimisation; v1 is feature-complete and the next milestones are v1.5/v2 work that doesn't need a live cloud target). The full stack reproduces locally via Docker Compose; redeploy is documented in [REDEPLOY.md](./REDEPLOY.md). v1.5 + v2 roadmap (~58h, Sprints 5–9) is in [SPRINTS.md](./SPRINTS.md).
 
-| Surface | URL |
+| Surface | URL (local) |
 |---|---|
-| Streamlit demo | http://165.22.192.94/ |
-| FastAPI / OpenAPI | http://165.22.192.94/health · /docs |
-| Langfuse traces | http://165.22.192.94:3000 |
+| Streamlit demo | http://localhost:8501/ |
+| FastAPI / OpenAPI | http://localhost:8000/health · /docs |
+| Langfuse traces | http://localhost:3100/ (remapped from 3000 by override) |
 | Public docs (VitePress) | https://andreliar.github.io/QuartierScopeAI/ |
 | Repo (public) | https://github.com/AndreLiar/QuartierScopeAI |
 
@@ -47,14 +47,19 @@ pytest tests/test_memory.py::test_router_includes_history_in_prompt -v  # single
 ruff check app tests
 mypy app  # advisory; not blocking in CI
 
-# Docker (production-equivalent)
-docker compose up -d --build
-docker compose exec app python -m app.ingest                   # ingest on droplet
+# Docker (production-equivalent — and the canonical way to run today)
+docker compose up -d --build                                   # 6 services, ~2 min first build
+docker compose exec app python -m app ingest-corpus            # one-shot RAG ingest → 264 chunks
 docker compose exec -T app python -m app query "..."           # run via container
 
-# On the droplet (SSH)
-ssh -i ~/.ssh/do_ed25519 quartierscope@165.22.192.94
-cd ~/quartierscope && docker compose ps                        # service health
+# `docker-compose.override.yml` is gitignored and auto-loaded for local dev.
+# It publishes app:8000 + streamlit:8501 directly, gates Caddy behind a `proxy`
+# profile (the bind-mounted Caddyfile hits a macOS Docker file-lock issue),
+# and remaps Langfuse 3000→3100 if host port 3000 is busy.
+
+# On the droplet (SSH) — only relevant once REDEPLOY.md has been followed
+# ssh -i ~/.ssh/do_ed25519 quartierscope@<NEW_IP>
+# cd ~/quartierscope && docker compose ps                      # service health
 
 # Deploy
 git push origin main                                           # auto-triggers CI + Deploy + Docs workflows
@@ -115,8 +120,9 @@ These have been violated and re-imposed multiple times — keep them in mind:
 - OpenAI `gpt-4o-mini` (router) + `gpt-4o` (synth) · `text-embedding-3-small` (1536-d)
 - FastAPI · Typer + Rich CLI · Streamlit UI
 - HubSpot Free via Service Keys (beta) — Bearer `pat-na1-…`
-- Caddy reverse proxy (HTTP only, no domain) · Docker Compose · DigitalOcean droplet 4GB AMS3 ($24/mo)
+- Caddy reverse proxy (HTTP only, no domain) · Docker Compose · DigitalOcean droplet 4GB AMS3 ($24/mo) — **droplet decommissioned 2026-05-10; redeploy via [REDEPLOY.md](./REDEPLOY.md)**
 - GitHub Actions: 3 workflows (CI, Deploy, Docs) auto-deploy on push to `main`. Deploy uses `--force-recreate` to propagate `.env` changes (lesson from journey Phase 7).
+- Local-dev artifacts (all gitignored): `backups/.env-droplet` (every key including Langfuse self-hosted secrets), `backups/langfuse-*.sql.gz` (40-table pg_dump of v1 trace history), `docker-compose.override.yml` (per-developer compose adaptations). Restore traces with `gzip -dc backups/langfuse-*.sql.gz | docker compose exec -T langfuse-db psql -U postgres langfuse`.
 
 ## Things that look like gaps but are intentional
 

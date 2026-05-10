@@ -21,12 +21,16 @@ terraform/*.tfstate
 terraform/*.tfstate.*
 terraform/.terraform.lock.hcl
 terraform/terraform.tfvars
+terraform/*.auto.tfvars
 terraform/*.tfplan
 
 data/dvf_cache/*
 !data/dvf_cache/.gitkeep
 data/corpus/raw/*
 !data/corpus/raw/.gitkeep
+data/.quartierscope_session.json
 
 dist/
 build/
+backups/
+docker-compose.override.yml

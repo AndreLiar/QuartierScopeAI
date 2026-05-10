@@ -1,5 +1,7 @@
 # Deployment & CI/CD
 
+> **Status (2026-05-10): cloud paused.** The DigitalOcean droplet (`165.22.192.94`, AMS3 4GB) was decommissioned to halt the $24/mo run after v1 closed. The full stack runs locally via `docker compose up -d`. To bring the cloud back up, follow [REDEPLOY.md](https://github.com/AndreLiar/QuartierScopeAI/blob/main/REDEPLOY.md): `terraform apply` → update `DROPLET_HOST` GitHub secret → push. The Terraform config, bootstrap script, GitHub Actions workflows, and SSH key are all preserved — redeploy is ~5 minutes. The IPs and URLs below describe how the system **was** deployed and **will be** redeployed; just substitute the new IP that `terraform apply` returns.
+
 How code lands on the droplet automatically.
 
 ## Topology
@@ -73,14 +75,22 @@ The droplet is bootstrapped via cloud-init (`terraform/bootstrap.sh`):
 - Enables `fail2ban`
 - Creates non-root `quartierscope` user with `docker` group access
 
-## Local development
+## Local development (canonical surface today)
 
 ```bash
 git clone https://github.com/AndreLiar/QuartierScopeAI
 cd QuartierScopeAI
-cp .env.example .env  # edit with your keys
-docker compose up
+cp .env.example .env                                   # edit with your keys
+docker compose up -d                                   # 6 services, ~2 min first build
+docker compose exec app python -m app ingest-corpus    # 264 chunks
 ```
+
+Surfaces:
+- `http://localhost:8000/health` · `http://localhost:8000/docs` (FastAPI)
+- `http://localhost:8501/` (Streamlit)
+- `http://localhost:3100/` (Langfuse v2 — remapped from 3000 by override)
+
+The repo ships an opt-in `docker-compose.override.yml` template pattern (gitignored). For local macOS dev where host port 3000 is busy or Caddy hits the bind-mount file-lock issue, a typical override publishes `app:8000` + `streamlit:8501` directly, gates Caddy behind a `proxy` profile, and remaps Langfuse 3000→3100.
 
 Or for non-Docker dev:
 ```bash

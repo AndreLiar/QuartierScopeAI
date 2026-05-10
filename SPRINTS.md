@@ -14,16 +14,16 @@ Agile plan covering the 44h roadmap defined in `prd.md` §17. Importable into Li
 
 **v2 (Sprints 8–9) = ⏳ planned, ~26h.** SaaS-ifies the platform: programmes neufs marketplace + multi-tenant onboarding for other independent CGPs.
 
-Verified live operational state:
+Verified live operational state during v1 (cloud paused since 2026-05-10 — droplet decommissioned to halt the $24/mo run; redeploy via [REDEPLOY.md](./REDEPLOY.md), ~5 min):
 
-| | URL |
-|---|---|
-| Streamlit demo | http://165.22.192.94/ |
-| API + OpenAPI | http://165.22.192.94/health · /docs |
-| Langfuse trace UI | http://165.22.192.94:3000 (traces flowing) |
-| HubSpot proof of write | https://app.hubspot.com/contacts/48849852/record/0-3/60053552445 |
-| Public docs | https://andreliar.github.io/QuartierScopeAI/ |
-| Repo | https://github.com/AndreLiar/QuartierScopeAI |
+| | URL during v1 | URL today (local) |
+|---|---|---|
+| Streamlit demo | http://165.22.192.94/ | http://localhost:8501/ |
+| API + OpenAPI | http://165.22.192.94/health · /docs | http://localhost:8000/health · /docs |
+| Langfuse trace UI | http://165.22.192.94:3000 (traces flowing) | http://localhost:3100/ (v1 trace history restorable from `backups/langfuse-*.sql.gz`) |
+| HubSpot proof of write | https://app.hubspot.com/contacts/48849852/record/0-3/60053552445 | (unchanged — cloud-side) |
+| Public docs | https://andreliar.github.io/QuartierScopeAI/ | (unchanged — GitHub Pages) |
+| Repo | https://github.com/AndreLiar/QuartierScopeAI | (unchanged) |
 
 Status legend used below: ✅ shipped & verified · ⚠️ deferred (non-blocking) · ⏳ user action · ❌ removed in favour of a better approach.
 
